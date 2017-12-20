@@ -1,20 +1,5 @@
 {% extends "admin/change_form.html" %}
 
-{% block extrastyle %}
-    {{ block.super }}
-    <style type="text/css">
-        .grp-object-tools a.experiment-state-toggle {
-            background: -webkit-gradient(linear, 50% 0%, 50% 100%, color-stop(0%, #4fb2d3),color-stop(100%, #309bbf));
-            background: -moz-linear-gradient(#4fb2d3,#309bbf);
-            background: -webkit-linear-gradient(#4fb2d3,#309bbf);
-            background: linear-gradient(#4fb2d3,#309bbf);
-        }
-        table.relevant-goals {
-            margin-bottom: 1em;
-        }
-    </style>
-{% endblock extrastyle %}
-
 {% block content_title %}
     {% if original %}
         <h1>{{ original.name }}</h1>
@@ -33,7 +18,7 @@
         </h5>
 
         <div class="module experiment-results-container">
-            {% include "admin/experiments/results_table.html" %}
+            {% include "admin/experiments/experiment/results_table.html" %}
         </div>
     {% endif %}
 {% endblock object-tools %}
@@ -42,9 +27,9 @@
     {{ block.super }}
     {% if original %}
         {# These have to be links to get the correct admin styling #}
-        <li><a href="." data-set-state="0" class="{% if original.state == 0 %}experiment-state-selected{% endif %} experiment-state-toggle">Default/Control</a></li>
-        <li><a href="." data-set-state="3" class="{% if original.state == 3 %}experiment-state-selected{% endif %} experiment-state-toggle">Track</a></li>
-        <li><a href="." data-set-state="1" class="{% if original.state == 1 %}experiment-state-selected{% endif %} experiment-state-toggle">Enabled</a></li>
+        <li><a href="../" data-set-state="0" class="{% if original.state == 0 %}experiment-state-selected{% endif %} experiment-state-toggle">Default/Control</a></li>
+        <li><a href="../" data-set-state="3" class="{% if original.state == 3 %}experiment-state-selected{% endif %} experiment-state-toggle">Track</a></li>
+        <li><a href="../" data-set-state="1" class="{% if original.state == 1 %}experiment-state-selected{% endif %} experiment-state-toggle">Enabled</a></li>
     {% endif %}
 {% endblock object-tools-items %}
 
