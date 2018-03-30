@@ -405,9 +405,30 @@ Settings
 
 See conf.py for other settings
 
+Local Development Settings
+--------------------------
+After setting up a virtual environment:
+
+* Install the package's dependencies:
+
+```
+pip install -e .
+```
+
+* Install `tox` and run unit tests:
+
+```
+pip install tox==2.9.1
+tox -e py27-django1.11
+```
+
 
 Changelog
 ---------
+
+1.4.6
+~~~~~
+ - query optimisations
 
 1.4.5
 ~~~~~

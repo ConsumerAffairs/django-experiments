@@ -3,7 +3,7 @@ from __future__ import division
 from django.db import IntegrityError
 
 from experiments.conditional.models import ExperimentDisablement
-from experiments.models import Enrollment
+from experiments.models import Enrollment, Experiment
 from experiments.manager import experiment_manager
 from experiments.dateutils import now, fix_awareness, datetime_from_timestamp, timestamp_from_datetime
 from experiments.signals import user_enrolled
@@ -366,7 +366,9 @@ class AuthenticatedUser(WebUser):
             experiment__name__in=disabled
         ).select_related("experiment")
         for enrollment in enrollments:
-            yield EnrollmentData(enrollment.experiment, enrollment.alternative, enrollment.enrollment_date, enrollment.last_seen)
+            yield EnrollmentData(
+                enrollment.experiment, enrollment.alternative,
+                enrollment.enrollment_date, enrollment.last_seen)
 
     def _get_disabled_experiment_names(self):
         if self.request and hasattr(self.request, 'experiments'):
@@ -381,25 +383,39 @@ class AuthenticatedUser(WebUser):
         )
 
     def set_disabled_experiments(self, names):
+        """
+        Persists a list of experiments that are disabled for this user.
+        AND updates the remaing user's experiments as enabled.
+        """
+
+        # un-disable any experiments that are not in `names`
         ExperimentDisablement.objects.filter(
             user=self.user,
             disabled=True,
         ).exclude(
             experiment__name__in=names,
-        ).update(
-            disabled=False,
+        ).update(disabled=False)
+        for_disabling = ExperimentDisablement.objects.filter(
+            user=self.user,
+            experiment__name__in=names
         )
-        for name in names:
-            experiment = experiment_manager.get_experiment(
-                name, auto_create=False)
-            if experiment:
-                ExperimentDisablement.objects.update_or_create(
-                    user=self.user,
-                    experiment=experiment,
-                    defaults={
-                        'disabled': True,
-                    }
-                )
+        all_disabled = for_disabling.values_list('experiment__name', flat=True)
+
+        # update for disabling
+        for_disabling.update(disabled=True)
+
+        # if name not in all_disabled, create it
+        to_create = [name for name in names if name not in all_disabled]
+        experiment_pks = Experiment.objects.filter(
+            name__in=to_create
+        ).values_list('name', flat=True)
+        experiment_disablements = [
+            ExperimentDisablement(
+                user=self.user,
+                experiment_id=experiment_name,
+            ) for experiment_name in experiment_pks
+        ]
+        ExperimentDisablement.objects.bulk_create(experiment_disablements)
 
     def _cancel_enrollment(self, experiment):
         try:
@@ -511,8 +527,10 @@ class SessionUser(WebUser):
         return self.session.get(conf.DISABLED_EXPERIMENTS_SESSION_KEY, [])
 
     def set_disabled_experiments(self, names):
+        existing_names = Experiment.objects.all().values_list(
+            'name', flat=True)
         key = conf.DISABLED_EXPERIMENTS_SESSION_KEY
-        self.session[key] = list(names)
+        self.session[key] = [n for n in names if n in existing_names]
 
     def _cancel_enrollment(self, experiment):
         alternative = self._get_enrollment(experiment)

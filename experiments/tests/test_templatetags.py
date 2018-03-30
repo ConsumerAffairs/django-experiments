@@ -18,7 +18,10 @@ from experiments.utils import participant
 
 
 class ExperimentTemplateTagTestCase(TestCase):
-    """These test cases are rather nastily coupled, and are mainly intended to check the token parsing code"""
+    """
+    These test cases are rather nastily coupled, and are mainly intended to
+    check the token parsing code
+    """
 
     def test_returns_with_standard_values(self):
         token_contents = ('experiment', 'backgroundcolor', 'blue')
@@ -480,26 +483,22 @@ class PrepareTemplateTagTestCase(TestCase):
         self.request = mock.MagicMock()
         self.context = {'request': self.request}
 
-    @mock.patch('experiments.conditional.enrollment.experiment_manager')
     @mock.patch('experiments.models.Experiment.objects')
-    def test_auto_enroll_anonymous(self, objects, experiment_manager):
+    def test_auto_enroll_anonymous(self, objects):
         self.request.user.is_staff = False
         objects.filter.return_value.values_list.return_value = []
         value = _experiments_prepare_conditionals(self.context)
         expected_value = ''
         self.assertEqual(expected_value, value)
-        experiment_manager.assert_not_called()
 
-    @mock.patch('experiments.conditional.enrollment.experiment_manager')
     @mock.patch('experiments.models.Experiment.objects')
-    def test_auto_enroll_staff(self, objects, experiment_manager):
+    def test_auto_enroll_staff(self, objects):
         self.request.user.is_staff = True
         objects.filter.return_value.values_list.return_value = []
         value = _experiments_prepare_conditionals(self.context)
         expected_value = (
             '<script>window.ca_experiments = {"conditional": {}};</script>')
         self.assertEqual(expected_value, value)
-        experiment_manager.assert_not_called()
 
     @mock.patch('experiments.templatetags.experiments'
                 '._experiments_prepare_conditionals')
