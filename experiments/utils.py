@@ -527,8 +527,10 @@ class SessionUser(WebUser):
         return self.session.get(conf.DISABLED_EXPERIMENTS_SESSION_KEY, [])
 
     def set_disabled_experiments(self, names):
+        existing_names = Experiment.objects.all().values_list(
+            'name', flat=True)
         key = conf.DISABLED_EXPERIMENTS_SESSION_KEY
-        self.session[key] = list(names)
+        self.session[key] = [n for n in names if n in existing_names]
 
     def _cancel_enrollment(self, experiment):
         alternative = self._get_enrollment(experiment)

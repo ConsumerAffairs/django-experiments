@@ -140,9 +140,17 @@ class WebUserTests(object):
 
     def test_disabled_experiments_list(self):
         experiment_user = participant(self.request)
+        # empty list:
+        the_list = experiment_user._get_disabled_experiment_names()
+        self.assertEqual([], the_list)
+        # disabling one existing and one unknown experiment:
         experiment_user.set_disabled_experiments(['foobar', EXPERIMENT_NAME])
         the_list = experiment_user._get_disabled_experiment_names()
-        self.assertIn(EXPERIMENT_NAME, the_list)
+        self.assertEqual([EXPERIMENT_NAME], the_list)
+        # enabling all experiments:
+        experiment_user.set_disabled_experiments([])
+        the_list = experiment_user._get_disabled_experiment_names()
+        self.assertEqual([], the_list)
 
     def test_enroll_in_disabled_experiment(self):
         experiment_user = participant(self.request)
