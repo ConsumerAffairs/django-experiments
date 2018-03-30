@@ -426,6 +426,10 @@ tox -e py27-django1.11
 Changelog
 ---------
 
+1.4.6
+~~~~~
+ - query optimisations
+
 1.4.5
 ~~~~~
  - bugfix release for conditionals
