@@ -19,6 +19,7 @@ from experiments.consts import (
 )
 from experiments.dateutils import now
 from experiments.api.models import *  # noqa
+from experiments.conditional.models import *  # noqa
 from experiments.lock import DbLock  # noqa
 
 

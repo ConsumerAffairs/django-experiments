@@ -35,6 +35,7 @@ class ApiTestCase(TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(cls, cls).setUpClass()
         cls.user = User.objects.create(
             username='tester',
             is_staff=True,
@@ -46,6 +47,7 @@ class ApiTestCase(TestCase):
     def tearDownClass(cls):
         cls.user.delete()
         experiments.conf.API = cls._original_conf_API
+        super(cls, cls).tearDownClass()
 
     def setUp(self):
         self.request = APIRequestFactory().get('')
@@ -120,6 +122,7 @@ class RemoteExperimentStateViewTestCase(TestCase):
 
     @classmethod
     def setUpClass(cls):
+        super(cls, cls).setUpClass()
         cls.user = User.objects.create(
             username='tester',
             is_staff=True,
@@ -129,6 +132,7 @@ class RemoteExperimentStateViewTestCase(TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.user.delete()
+        super(cls, cls).tearDownClass()
 
     def setUp(self):
         self.request = APIRequestFactory().patch('')

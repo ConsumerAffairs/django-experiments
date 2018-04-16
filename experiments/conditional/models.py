@@ -14,6 +14,7 @@ from .utils import xml_bool
 __all__ = [
     'AdminConditional',
     'AdminConditionalTemplate',
+    'ExperimentDisablement',
 ]
 
 
@@ -201,3 +202,19 @@ class AdminConditionalTemplate(ContextTemplateMixin, models.Model):
 
     def __str__(self):
         return self.description
+
+
+@python_2_unicode_compatible
+class ExperimentDisablement(models.Model):
+    """
+    Used to keep record of disabled experiments for Authenticated Users
+    """
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', on_delete=models.CASCADE)
+    disabled = models.BooleanField(null=False, blank=True, default=True)
+
+    class Meta:
+        unique_together = (('user', 'experiment'),)
+
+    def __str__(self):
+        return '{} - {}'.format(self.user, self.experiment)

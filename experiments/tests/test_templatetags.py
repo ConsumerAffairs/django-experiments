@@ -8,16 +8,20 @@ from experiments.tests.testing_2_3 import mock
 
 from experiments.models import Experiment
 from experiments.templatetags.experiments import (
-    ExperimentsExtension,
-    _parse_token_contents,
     _experiments_prepare_conditionals,
+    _parse_token_contents,
+    ExperimentsExtension,
+    experiment_enrolled_alternative,
     experiments_prepare_conditionals,
 )
 from experiments.utils import participant
 
 
 class ExperimentTemplateTagTestCase(TestCase):
-    """These test cases are rather nastily coupled, and are mainly intended to check the token parsing code"""
+    """
+    These test cases are rather nastily coupled, and are mainly intended to
+    check the token parsing code
+    """
 
     def test_returns_with_standard_values(self):
         token_contents = ('experiment', 'backgroundcolor', 'blue')
@@ -50,6 +54,19 @@ class ExperimentTemplateTagTestCase(TestCase):
         token_contents = ('experiment', 'backgroundcolor')
         self.assertRaises(ValueError, lambda: _parse_token_contents(token_contents))
 
+    @mock.patch('experiments.templatetags.experiments.participant')
+    def test_experiment_enrolled_alternative(self, participant_patch):
+        experiment_name = "test_experiment"
+        some_alternative = 'some_alternative'
+        mock_user = participant_patch.return_value
+        mock_user.get_alternative.return_value = some_alternative
+        request = mock.Mock()
+        context = {'request': request}
+        alternative = experiment_enrolled_alternative(context, experiment_name)
+        participant_patch.assert_called_once_with(request=request)
+        mock_user.get_alternative.assert_called_once_with(
+            experiment_name, request)
+        self.assertEqual(alternative, some_alternative)
 
 class ExperimentAutoCreateTestCase(TestCase):
     @override_settings(EXPERIMENTS_AUTO_CREATE=False)
@@ -444,6 +461,21 @@ class ExperimentsJinjaExtensionTests(TestCase):
         retval = self.extension._token_as(self.parser)
         self.assertFalse(retval)
 
+    @mock.patch('experiments.templatetags.experiments.participant')
+    def test_render_experiment_enrolled_alternative(self, participant_patch):
+        experiment_name = "test_experiment"
+        some_alternative = 'some_alternative'
+        mock_user = participant_patch.return_value
+        mock_user.get_alternative.return_value = some_alternative
+        request = mock.Mock()
+        context = {'request': request}
+        alternative = self.extension.render_experiment_enrolled_alternative(
+            experiment_name, context)
+        participant_patch.assert_called_once_with(request=request)
+        mock_user.get_alternative.assert_called_once_with(
+            experiment_name, request)
+        self.assertEqual(alternative, some_alternative)
+
 
 class PrepareTemplateTagTestCase(TestCase):
 
@@ -451,26 +483,22 @@ class PrepareTemplateTagTestCase(TestCase):
         self.request = mock.MagicMock()
         self.context = {'request': self.request}
 
-    @mock.patch('experiments.conditional.enrollment.experiment_manager')
     @mock.patch('experiments.models.Experiment.objects')
-    def test_auto_enroll_anonymous(self, objects, experiment_manager):
+    def test_auto_enroll_anonymous(self, objects):
         self.request.user.is_staff = False
         objects.filter.return_value.values_list.return_value = []
         value = _experiments_prepare_conditionals(self.context)
         expected_value = ''
         self.assertEqual(expected_value, value)
-        experiment_manager.assert_not_called()
 
-    @mock.patch('experiments.conditional.enrollment.experiment_manager')
     @mock.patch('experiments.models.Experiment.objects')
-    def test_auto_enroll_staff(self, objects, experiment_manager):
+    def test_auto_enroll_staff(self, objects):
         self.request.user.is_staff = True
         objects.filter.return_value.values_list.return_value = []
         value = _experiments_prepare_conditionals(self.context)
         expected_value = (
             '<script>window.ca_experiments = {"conditional": {}};</script>')
         self.assertEqual(expected_value, value)
-        experiment_manager.assert_not_called()
 
     @mock.patch('experiments.templatetags.experiments'
                 '._experiments_prepare_conditionals')

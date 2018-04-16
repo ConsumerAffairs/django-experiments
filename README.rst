@@ -306,7 +306,20 @@ This will be fired when the user loads the page. This is not the only way of fir
 
         <button onclick="experiments.goal('registration')">Complete Registration</button>
 
-    (Please note, this requires CSRF authentication. Please see the `Django Docs <https://docs.djangoproject.com/en/1.4/ref/contrib/csrf/#ajax>`_)
+    If your project uses CSRF protection (and it should), you will need to send
+    ``X-CSRFToken`` HTTP header along with the AJAX request. Django-experiments 
+    provides a hook that will be called before making the AJAX request. To use it, 
+    create a function called ``experimentsCsrfToken`` and have it return the value
+    of the token. For example:
+
+    ::
+
+        function experimentsCsrfToken() {
+            return experiments.getCookie('');
+        }
+
+    For more info please see the `Django Docs <https://docs.djangoproject.com/en/1.4/ref/contrib/csrf/#ajax>`_
+
 
 4. **Cookies**:
 
@@ -392,9 +405,42 @@ Settings
 
 See conf.py for other settings
 
+Local Development Settings
+--------------------------
+After setting up a virtual environment:
+
+* Install the package's dependencies:
+
+```
+pip install -e .
+```
+
+* Install `tox` and run unit tests:
+
+```
+pip install tox==2.9.1
+tox -e py27-django1.11
+```
+
 
 Changelog
 ---------
+
+1.4.6
+~~~~~
+ - query optimisations
+
+1.4.5
+~~~~~
+ - bugfix release for conditionals
+
+1.4.4
+~~~~~
+ - bugfix release for conditionals
+
+1.4.3
+~~~~~
+ - experimentsCsrfToken JS hook for reporting goals via JS
 
 1.4.2
 ~~~~~

@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.sessions.backends.db import SessionStore as DatabaseSession
 from django.utils import timezone
 from experiments import conf
+from experiments.conditional.models import ExperimentDisablement
 
 from experiments.experiment_counters import ExperimentCounter
 from experiments.middleware import ExperimentsRetentionMiddleware
@@ -38,6 +39,7 @@ class WebUserTests(object):
 
     def tearDown(self):
         self.experiment_counter.delete(self.experiment)
+        self.experiment.delete()
 
     def test_enrollment_initially_control(self):
         experiment_user = participant(self.request)
@@ -47,6 +49,13 @@ class WebUserTests(object):
         experiment_user = participant(self.request)
         experiment_user.set_alternative(EXPERIMENT_NAME, TEST_ALTERNATIVE)
         self.assertEqual(experiment_user.get_alternative(EXPERIMENT_NAME), TEST_ALTERNATIVE, "Wrong Alternative Set")
+
+    def test_user_not_enrolls_w_false_conditional(self):
+        experiment_user = participant(self.request)
+        with mock.patch.object(experiment_user, '_get_disabled_experiment_names'):
+            experiment_user._get_disabled_experiment_names.return_value = EXPERIMENT_NAME
+            experiment_user.set_alternative(EXPERIMENT_NAME, TEST_ALTERNATIVE)
+        self.assertEqual(experiment_user.get_alternative(EXPERIMENT_NAME), CONTROL_GROUP, "Wrong Alternative Set")
 
     def test_record_goal_increments_counts(self):
         experiment_user = participant(self.request)
@@ -129,6 +138,35 @@ class WebUserTests(object):
         experiment_user.enroll(EXPERIMENT_NAME, alternatives, force_alternative=other_alternative)
         self.assertEqual(alternative, experiment_user.get_alternative(EXPERIMENT_NAME))
 
+    def test_disabled_experiments_list(self):
+        experiment_user = participant(self.request)
+        # empty list:
+        the_list = experiment_user._get_disabled_experiment_names()
+        self.assertEqual([], the_list)
+        # disabling one existing and one unknown experiment:
+        experiment_user.set_disabled_experiments(['foobar', EXPERIMENT_NAME])
+        the_list = experiment_user._get_disabled_experiment_names()
+        self.assertEqual([EXPERIMENT_NAME], the_list)
+        # enabling all experiments:
+        experiment_user.set_disabled_experiments([])
+        the_list = experiment_user._get_disabled_experiment_names()
+        self.assertEqual([], the_list)
+
+    def test_enroll_in_disabled_experiment(self):
+        experiment_user = participant(self.request)
+        another_request = request_factory.get('/')
+        another_request.session = DatabaseSession()
+        another_user = participant(another_request)
+        experiment_user._set_enrollment(self.experiment, 'alt1')
+        alternative = experiment_user.enroll(EXPERIMENT_NAME, ['alt1'])
+        self.assertEqual(alternative, 'alt1')
+        another_user.set_disabled_experiments([EXPERIMENT_NAME])
+        alternative = experiment_user.enroll(EXPERIMENT_NAME, ['alt1'])
+        self.assertEqual(alternative, 'alt1')
+        experiment_user.set_disabled_experiments([EXPERIMENT_NAME])
+        alternative = experiment_user.enroll(EXPERIMENT_NAME, ['alt1'])
+        self.assertEqual(alternative, CONTROL_GROUP)
+
 
 class WebUserAnonymousTestCase(WebUserTests, TestCase):
     def setUp(self):
@@ -154,12 +192,11 @@ class WebUserAnonymousTestCase(WebUserTests, TestCase):
         self.assertEqual(self.experiment_counter.goal_count(self.experiment, TEST_ALTERNATIVE, TEST_GOAL), 1, "Did not count goal after confirm human")
 
 
-class WebUserAuthenticatedTestCase(WebUserTests, TestCase):
+class AuthenticatedUserTestCase(WebUserTests, TestCase):
     def setUp(self):
-        super(WebUserAuthenticatedTestCase, self).setUp()
-        User = get_user_model()
-        self.request.user = User(username='brian')
-        self.request.user.save()
+        super(AuthenticatedUserTestCase, self).setUp()
+        User = get_user_model()  # noqa
+        self.request.user = User.objects.create(username='test')
 
 
 class BotTests(object):
