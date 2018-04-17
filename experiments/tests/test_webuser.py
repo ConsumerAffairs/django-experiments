@@ -14,7 +14,11 @@ from experiments.conditional.models import ExperimentDisablement
 
 from experiments.experiment_counters import ExperimentCounter
 from experiments.middleware import ExperimentsRetentionMiddleware
-from experiments.models import Experiment, ENABLED_STATE, Enrollment
+from experiments.models import (
+    CONTROL_STATE,
+    ENABLED_STATE,
+    Enrollment,
+    Experiment)
 from experiments.conf import CONTROL_GROUP, VISIT_PRESENT_COUNT_GOAL, VISIT_NOT_PRESENT_COUNT_GOAL
 from experiments.signal_handlers import transfer_enrollments_to_user
 from experiments.utils import participant
@@ -166,6 +170,38 @@ class WebUserTests(object):
         experiment_user.set_disabled_experiments([EXPERIMENT_NAME])
         alternative = experiment_user.enroll(EXPERIMENT_NAME, ['alt1'])
         self.assertEqual(alternative, CONTROL_GROUP)
+
+    def test_get_alternative_sets_active_experiment_when_exists(self):
+        experiment_user = participant(self.request)
+        experiment_user.get_alternative(EXPERIMENT_NAME)
+        self.assertEqual(experiment_user.active_experiment, EXPERIMENT_NAME)
+
+    def test_get_alternative_doesnt_set_active_experiment_when_forced_control(
+            self):
+        self.experiment.state = CONTROL_STATE
+        self.experiment.save()
+
+        experiment_user = participant(self.request)
+        experiment_user.get_alternative(EXPERIMENT_NAME)
+        self.assertIsNone(experiment_user.active_experiment)
+
+    def test_get_alternative_doesnt_set_active_experiment_when_disabled(
+            self):
+        self.request.experiments = mock.MagicMock()
+        self.request.experiments.disabled_experiments = [EXPERIMENT_NAME]
+        experiment_user = participant(self.request)
+        experiment_user.get_alternative(EXPERIMENT_NAME, self.request)
+        self.assertIsNone(experiment_user.active_experiment)
+
+    def test_get_alternative_doesnt_set_active_experiment_when_doesnt_exist(
+            self):
+        experiment_user = participant(self.request)
+        experiment_user.get_alternative('non_existing_experiment')
+        self.assertIsNone(experiment_user.active_experiment)
+
+    def test_active_experiment_is_null_by_default(self):
+        experiment_user = participant(self.request)
+        self.assertIsNone(experiment_user.active_experiment)
 
 
 class WebUserAnonymousTestCase(WebUserTests, TestCase):

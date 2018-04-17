@@ -55,11 +55,31 @@ class ExperimentTemplateTagTestCase(TestCase):
         self.assertRaises(ValueError, lambda: _parse_token_contents(token_contents))
 
     @mock.patch('experiments.templatetags.experiments.participant')
-    def test_experiment_enrolled_alternative(self, participant_patch):
-        experiment_name = "test_experiment"
+    def test_experiment_enrolled_alternative_wo_active_experiment(
+            self, participant_patch):
+        experiment_name = 'test_experiment'
         some_alternative = 'some_alternative'
         mock_user = participant_patch.return_value
         mock_user.get_alternative.return_value = some_alternative
+        mock_user.active_experiment = None
+        request = mock.Mock()
+        original_value = request.experiments_exposure
+        context = {'request': request}
+        alternative = experiment_enrolled_alternative(context, experiment_name)
+        participant_patch.assert_called_once_with(request=request)
+        mock_user.get_alternative.assert_called_once_with(
+            experiment_name, request)
+        self.assertEqual(alternative, some_alternative)
+        self.assertEqual(request.experiments_exposure, original_value)
+
+    @mock.patch('experiments.templatetags.experiments.participant')
+    def test_experiment_enrolled_alternative_w_active_experiment(
+            self, participant_patch):
+        experiment_name = 'test_experiment'
+        some_alternative = 'some_alternative'
+        mock_user = participant_patch.return_value
+        mock_user.get_alternative.return_value = some_alternative
+        mock_user.active_experiment = 'test_experiment'
         request = mock.Mock()
         context = {'request': request}
         alternative = experiment_enrolled_alternative(context, experiment_name)
@@ -67,6 +87,10 @@ class ExperimentTemplateTagTestCase(TestCase):
         mock_user.get_alternative.assert_called_once_with(
             experiment_name, request)
         self.assertEqual(alternative, some_alternative)
+        self.assertEqual(request.experiments_exposure, {
+            'experiment_name': 'test_experiment',
+            'experiment_variant': some_alternative,
+        })
 
 class ExperimentAutoCreateTestCase(TestCase):
     @override_settings(EXPERIMENTS_AUTO_CREATE=False)
