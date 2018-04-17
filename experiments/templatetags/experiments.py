@@ -190,8 +190,12 @@ def experiment_enrolled_alternative(context, experiment_name):
 def _experiment_enrolled_alternative(context, experiment_name):
     request = context.get('request', None)
     user = participant(request=request)
-    return user.get_alternative(experiment_name, request)
-
+    alternative = user.get_alternative(experiment_name, request)
+    if user.active_experiment:
+        request.experiments_exposure = {
+            'experiment_name': user.active_experiment,
+            'experiment_variant': alternative}
+    return alternative
 
 class ExtensionHelpers(object):
 
