@@ -65,7 +65,6 @@ class WebUser(object):
 
     def __init__(self):
         self.experiment_counter = ExperimentCounter()
-        self.active_experiment = None
 
     def enroll(self, experiment_name, alternatives, force_alternative=None):
         """
@@ -142,7 +141,11 @@ class WebUser(object):
         if experiment and not disabled:
             if experiment.is_displaying_alternatives():
                 alternative = self._get_enrollment(experiment)
-                self.active_experiment = experiment_name
+                if request:
+                    request.experiments_exposure = {
+                        'experiment_name': experiment_name,
+                        'experiment_variant': alternative
+                    }
                 if alternative is not None:
                     return alternative
             else:

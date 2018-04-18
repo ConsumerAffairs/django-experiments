@@ -173,17 +173,22 @@ class WebUserTests(object):
 
     def test_get_alternative_sets_active_experiment_when_exists(self):
         experiment_user = participant(self.request)
-        experiment_user.get_alternative(EXPERIMENT_NAME)
-        self.assertEqual(experiment_user.active_experiment, EXPERIMENT_NAME)
+        with mock.patch.object(
+                experiment_user, '_get_enrollment') as mock_enrollment:
+            mock_enrollment.return_value = 'alternative'
+            alternative = experiment_user.get_alternative(
+                EXPERIMENT_NAME, self.request)
+            self.assertEqual(self.request.experiments_exposure, {
+                'experiment_name': EXPERIMENT_NAME,
+                'experiment_variant': alternative})
 
     def test_get_alternative_doesnt_set_active_experiment_when_forced_control(
             self):
         self.experiment.state = CONTROL_STATE
         self.experiment.save()
-
         experiment_user = participant(self.request)
-        experiment_user.get_alternative(EXPERIMENT_NAME)
-        self.assertIsNone(experiment_user.active_experiment)
+        experiment_user.get_alternative(EXPERIMENT_NAME, self.request)
+        self.assertFalse(hasattr(self.request, 'experiments_exposure'))
 
     def test_get_alternative_doesnt_set_active_experiment_when_disabled(
             self):
@@ -191,17 +196,13 @@ class WebUserTests(object):
         self.request.experiments.disabled_experiments = [EXPERIMENT_NAME]
         experiment_user = participant(self.request)
         experiment_user.get_alternative(EXPERIMENT_NAME, self.request)
-        self.assertIsNone(experiment_user.active_experiment)
+        self.assertFalse(hasattr(self.request, 'experiments_exposure'))
 
     def test_get_alternative_doesnt_set_active_experiment_when_doesnt_exist(
             self):
         experiment_user = participant(self.request)
         experiment_user.get_alternative('non_existing_experiment')
-        self.assertIsNone(experiment_user.active_experiment)
-
-    def test_active_experiment_is_null_by_default(self):
-        experiment_user = participant(self.request)
-        self.assertIsNone(experiment_user.active_experiment)
+        self.assertFalse(hasattr(self.request, 'experiments_exposure'))
 
 
 class WebUserAnonymousTestCase(WebUserTests, TestCase):
