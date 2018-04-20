@@ -233,23 +233,6 @@ class WebUserTests(object):
         experiment_user = participant(self.request)
         self.assertEqual([], experiment_user.experiments_exposure)
 
-    def test_latest_experiment_exposed(self):
-        experiment_user = participant(self.request)
-        experiment_user.experiments_exposure = [{'first': 'value1'},
-                                                {'second': 'value2'}]
-        self.assertEqual(
-            experiment_user.latest_experiment_exposed, {'second': 'value2'})
-
-    def test_latest_experiment_exposed_is_not_dict(self):
-        experiment_user = participant(self.request)
-        experiment_user.experiments_exposure = [{'first': 'value1'},
-                                                'not_a_dictionary']
-        self.assertEqual(experiment_user.latest_experiment_exposed, {})
-
-    def test_latest_experiment_exposed_not_present(self):
-        experiment_user = participant(self.request)
-        self.assertEqual(experiment_user.latest_experiment_exposed, {})
-
 
 class WebUserAnonymousTestCase(WebUserTests, TestCase):
     def setUp(self):

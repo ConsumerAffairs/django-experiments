@@ -67,12 +67,6 @@ class WebUser(object):
         self.experiment_counter = ExperimentCounter()
         self.experiments_exposure = []
 
-    @property
-    def latest_experiment_exposed(self):
-        return (self.experiments_exposure[-1]
-                if self.experiments_exposure and
-                isinstance(self.experiments_exposure[-1], dict) else {})
-
     def enroll(self, experiment_name, alternatives, force_alternative=None):
         """
         Enroll this user in the experiment if they are not already part of it.
