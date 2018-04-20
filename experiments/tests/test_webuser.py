@@ -14,7 +14,11 @@ from experiments.conditional.models import ExperimentDisablement
 
 from experiments.experiment_counters import ExperimentCounter
 from experiments.middleware import ExperimentsRetentionMiddleware
-from experiments.models import Experiment, ENABLED_STATE, Enrollment
+from experiments.models import (
+    CONTROL_STATE,
+    ENABLED_STATE,
+    Enrollment,
+    Experiment)
 from experiments.conf import CONTROL_GROUP, VISIT_PRESENT_COUNT_GOAL, VISIT_NOT_PRESENT_COUNT_GOAL
 from experiments.signal_handlers import transfer_enrollments_to_user
 from experiments.utils import participant
@@ -113,8 +117,16 @@ class WebUserTests(object):
 
     def test_user_force_enrolls(self):
         experiment_user = participant(self.request)
-        experiment_user.enroll(EXPERIMENT_NAME, ['control', 'alternative1', 'alternative2'], force_alternative='alternative2')
-        self.assertEqual(experiment_user.get_alternative(EXPERIMENT_NAME), 'alternative2')
+        experiment_user.enroll(
+            EXPERIMENT_NAME,
+            ['control', 'alternative1', 'alternative2'],
+            force_alternative='alternative2')
+        self.assertEqual(
+            experiment_user.get_alternative(EXPERIMENT_NAME), 'alternative2')
+        self.assertIn(
+            {'experiment_name': EXPERIMENT_NAME,
+             'experiment_variant': 'alternative2'},
+            experiment_user.experiments_exposure)
 
     def test_user_does_not_force_enroll_to_new_alternative(self):
         alternatives = ['control', 'alternative1', 'alternative2']
@@ -123,20 +135,37 @@ class WebUserTests(object):
         alternative = experiment_user.get_alternative(EXPERIMENT_NAME)
         self.assertIsNotNone(alternative)
 
-        other_alternative = random.choice(list(set(alternatives) - set(alternative)))
-        experiment_user.enroll(EXPERIMENT_NAME, alternatives, force_alternative=other_alternative)
-        self.assertEqual(alternative, experiment_user.get_alternative(EXPERIMENT_NAME))
+        other_alternative = random.choice(
+            list(set(alternatives) - set(alternative)))
+        experiment_user.enroll(
+            EXPERIMENT_NAME, alternatives, force_alternative=other_alternative)
+
+        self.assertEqual(
+            alternative, experiment_user.get_alternative(EXPERIMENT_NAME))
+        self.assertIn(
+            {'experiment_name': EXPERIMENT_NAME,
+             'experiment_variant': alternative},
+            experiment_user.experiments_exposure)
 
     def test_second_force_enroll_does_not_change_alternative(self):
         alternatives = ['control', 'alternative1', 'alternative2']
         experiment_user = participant(self.request)
-        experiment_user.enroll(EXPERIMENT_NAME, alternatives, force_alternative='alternative1')
+        experiment_user.enroll(
+            EXPERIMENT_NAME, alternatives, force_alternative='alternative1')
         alternative = experiment_user.get_alternative(EXPERIMENT_NAME)
         self.assertIsNotNone(alternative)
 
-        other_alternative = random.choice(list(set(alternatives) - set(alternative)))
-        experiment_user.enroll(EXPERIMENT_NAME, alternatives, force_alternative=other_alternative)
-        self.assertEqual(alternative, experiment_user.get_alternative(EXPERIMENT_NAME))
+        other_alternative = random.choice(
+            list(set(alternatives) - set(alternative)))
+        experiment_user.enroll(
+            EXPERIMENT_NAME, alternatives, force_alternative=other_alternative)
+
+        self.assertEqual(
+            alternative, experiment_user.get_alternative(EXPERIMENT_NAME))
+        self.assertEqual(
+            experiment_user.experiments_exposure[-1],
+            {'experiment_name': EXPERIMENT_NAME,
+             'experiment_variant': alternative})
 
     def test_disabled_experiments_list(self):
         experiment_user = participant(self.request)
@@ -166,6 +195,43 @@ class WebUserTests(object):
         experiment_user.set_disabled_experiments([EXPERIMENT_NAME])
         alternative = experiment_user.enroll(EXPERIMENT_NAME, ['alt1'])
         self.assertEqual(alternative, CONTROL_GROUP)
+
+    def test_get_alternative_sets_active_experiment_when_exists(self):
+        experiment_user = participant(self.request)
+        with mock.patch.object(
+                experiment_user, '_get_enrollment') as mock_enrollment:
+            mock_enrollment.return_value = 'alternative'
+            alternative = experiment_user.get_alternative(
+                EXPERIMENT_NAME, self.request)
+            self.assertEqual(experiment_user.experiments_exposure, [{
+                'experiment_name': EXPERIMENT_NAME,
+                'experiment_variant': alternative}])
+
+    def test_get_alternative_doesnt_set_active_experiment_when_forced_control(
+            self):
+        self.experiment.state = CONTROL_STATE
+        self.experiment.save()
+        experiment_user = participant(self.request)
+        experiment_user.get_alternative(EXPERIMENT_NAME, self.request)
+        self.assertEqual([], experiment_user.experiments_exposure)
+
+    def test_get_alternative_doesnt_set_active_experiment_when_disabled(
+            self):
+        self.request.experiments = mock.MagicMock()
+        self.request.experiments.disabled_experiments = [EXPERIMENT_NAME]
+        experiment_user = participant(self.request)
+        experiment_user.get_alternative(EXPERIMENT_NAME, self.request)
+        self.assertEqual([], experiment_user.experiments_exposure)
+
+    def test_get_alternative_doesnt_set_active_experiment_when_doesnt_exist(
+            self):
+        experiment_user = participant(self.request)
+        experiment_user.get_alternative('non_existing_experiment')
+        self.assertEqual([], experiment_user.experiments_exposure)
+
+    def test_experiments_exposure_empty_by_default(self):
+        experiment_user = participant(self.request)
+        self.assertEqual([], experiment_user.experiments_exposure)
 
 
 class WebUserAnonymousTestCase(WebUserTests, TestCase):

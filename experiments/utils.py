@@ -65,12 +65,15 @@ class WebUser(object):
 
     def __init__(self):
         self.experiment_counter = ExperimentCounter()
+        self.experiments_exposure = []
 
     def enroll(self, experiment_name, alternatives, force_alternative=None):
         """
-        Enroll this user in the experiment if they are not already part of it. Returns the selected alternative
+        Enroll this user in the experiment if they are not already part of it.
+        Returns the selected alternative
 
-        force_alternative: Optionally force a user in an alternative at enrollment time
+        force_alternative: Optionally force a user in an alternative at
+        enrollment time
         """
         chosen_alternative = conf.CONTROL_GROUP
 
@@ -121,7 +124,10 @@ class WebUser(object):
                 else:
                     chosen_alternative = experiment.random_alternative()
                 self._set_enrollment(experiment, chosen_alternative)
-
+            self.experiments_exposure.append({
+                'experiment_name': experiment.name,
+                'experiment_variant': chosen_alternative,
+            })
         return chosen_alternative
 
     def get_alternative(self, experiment_name, request=None):
@@ -130,11 +136,13 @@ class WebUser(object):
         """
         disabled = False
         if request and hasattr(request, 'experiments'):
-            disabled = experiment_name in request.experiments.disabled_experiments
+            disabled = (experiment_name in
+                        request.experiments.disabled_experiments)
 
         experiment = None
         try:
-            # catching the KeyError instead of using .get so that the experiment is auto created if desired
+            # catching the KeyError instead of using .get so that
+            # the experiment is auto created if desired
             experiment = experiment_manager[experiment_name]
         except KeyError:
             pass
@@ -142,6 +150,10 @@ class WebUser(object):
             if experiment.is_displaying_alternatives():
                 alternative = self._get_enrollment(experiment)
                 if alternative is not None:
+                    self.experiments_exposure.append({
+                        'experiment_name': experiment_name,
+                        'experiment_variant': alternative,
+                    })
                     return alternative
             else:
                 return experiment.default_alternative

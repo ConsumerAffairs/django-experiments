@@ -68,6 +68,7 @@ class ExperimentTemplateTagTestCase(TestCase):
             experiment_name, request)
         self.assertEqual(alternative, some_alternative)
 
+
 class ExperimentAutoCreateTestCase(TestCase):
     @override_settings(EXPERIMENTS_AUTO_CREATE=False)
     def test_template_auto_create_off(self):
