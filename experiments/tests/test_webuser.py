@@ -123,10 +123,10 @@ class WebUserTests(object):
             force_alternative='alternative2')
         self.assertEqual(
             experiment_user.get_alternative(EXPERIMENT_NAME), 'alternative2')
-        self.assertEqual(
-            experiment_user.experiments_exposure,
+        self.assertIn(
             {'experiment_name': EXPERIMENT_NAME,
-             'experiment_variant': 'alternative2'})
+             'experiment_variant': 'alternative2'},
+            experiment_user.experiments_exposure)
 
     def test_user_does_not_force_enroll_to_new_alternative(self):
         alternatives = ['control', 'alternative1', 'alternative2']
@@ -142,10 +142,10 @@ class WebUserTests(object):
 
         self.assertEqual(
             alternative, experiment_user.get_alternative(EXPERIMENT_NAME))
-        self.assertEqual(
-            experiment_user.experiments_exposure,
+        self.assertIn(
             {'experiment_name': EXPERIMENT_NAME,
-             'experiment_variant': alternative})
+             'experiment_variant': alternative},
+            experiment_user.experiments_exposure)
 
     def test_second_force_enroll_does_not_change_alternative(self):
         alternatives = ['control', 'alternative1', 'alternative2']
@@ -163,7 +163,7 @@ class WebUserTests(object):
         self.assertEqual(
             alternative, experiment_user.get_alternative(EXPERIMENT_NAME))
         self.assertEqual(
-            experiment_user.experiments_exposure,
+            experiment_user.experiments_exposure[-1],
             {'experiment_name': EXPERIMENT_NAME,
              'experiment_variant': alternative})
 
@@ -203,9 +203,9 @@ class WebUserTests(object):
             mock_enrollment.return_value = 'alternative'
             alternative = experiment_user.get_alternative(
                 EXPERIMENT_NAME, self.request)
-            self.assertEqual(experiment_user.experiments_exposure, {
+            self.assertEqual(experiment_user.experiments_exposure, [{
                 'experiment_name': EXPERIMENT_NAME,
-                'experiment_variant': alternative})
+                'experiment_variant': alternative}])
 
     def test_get_alternative_doesnt_set_active_experiment_when_forced_control(
             self):
@@ -213,7 +213,7 @@ class WebUserTests(object):
         self.experiment.save()
         experiment_user = participant(self.request)
         experiment_user.get_alternative(EXPERIMENT_NAME, self.request)
-        self.assertIsNone(experiment_user.experiments_exposure)
+        self.assertEqual([], experiment_user.experiments_exposure)
 
     def test_get_alternative_doesnt_set_active_experiment_when_disabled(
             self):
@@ -221,17 +221,34 @@ class WebUserTests(object):
         self.request.experiments.disabled_experiments = [EXPERIMENT_NAME]
         experiment_user = participant(self.request)
         experiment_user.get_alternative(EXPERIMENT_NAME, self.request)
-        self.assertIsNone(experiment_user.experiments_exposure)
+        self.assertEqual([], experiment_user.experiments_exposure)
 
     def test_get_alternative_doesnt_set_active_experiment_when_doesnt_exist(
             self):
         experiment_user = participant(self.request)
         experiment_user.get_alternative('non_existing_experiment')
-        self.assertIsNone(experiment_user.experiments_exposure)
+        self.assertEqual([], experiment_user.experiments_exposure)
 
-    def test_experiments_exposure_none_by_default(self):
+    def test_experiments_exposure_empty_by_default(self):
         experiment_user = participant(self.request)
-        self.assertIsNone(experiment_user.experiments_exposure)
+        self.assertEqual([], experiment_user.experiments_exposure)
+
+    def test_latest_experiment_exposed(self):
+        experiment_user = participant(self.request)
+        experiment_user.experiments_exposure = [{'first': 'value1'},
+                                                {'second': 'value2'}]
+        self.assertEqual(
+            experiment_user.latest_experiment_exposed, {'second': 'value2'})
+
+    def test_latest_experiment_exposed_is_not_dict(self):
+        experiment_user = participant(self.request)
+        experiment_user.experiments_exposure = [{'first': 'value1'},
+                                                'not_a_dictionary']
+        self.assertEqual(experiment_user.latest_experiment_exposed, {})
+
+    def test_latest_experiment_exposed_not_present(self):
+        experiment_user = participant(self.request)
+        self.assertEqual(experiment_user.latest_experiment_exposed, {})
 
 
 class WebUserAnonymousTestCase(WebUserTests, TestCase):

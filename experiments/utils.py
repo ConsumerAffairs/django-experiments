@@ -65,7 +65,13 @@ class WebUser(object):
 
     def __init__(self):
         self.experiment_counter = ExperimentCounter()
-        self.experiments_exposure = None
+        self.experiments_exposure = []
+
+    @property
+    def latest_experiment_exposed(self):
+        return (self.experiments_exposure[-1]
+                if self.experiments_exposure and
+                isinstance(self.experiments_exposure[-1], dict) else {})
 
     def enroll(self, experiment_name, alternatives, force_alternative=None):
         """
@@ -124,11 +130,10 @@ class WebUser(object):
                 else:
                     chosen_alternative = experiment.random_alternative()
                 self._set_enrollment(experiment, chosen_alternative)
-            self.experiments_exposure = {
+            self.experiments_exposure.append({
                 'experiment_name': experiment.name,
                 'experiment_variant': chosen_alternative,
-            }
-
+            })
         return chosen_alternative
 
     def get_alternative(self, experiment_name, request=None):
@@ -151,10 +156,10 @@ class WebUser(object):
             if experiment.is_displaying_alternatives():
                 alternative = self._get_enrollment(experiment)
                 if alternative is not None:
-                    self.experiments_exposure = {
+                    self.experiments_exposure.append({
                         'experiment_name': experiment_name,
                         'experiment_variant': alternative,
-                    }
+                    })
                     return alternative
             else:
                 return experiment.default_alternative
