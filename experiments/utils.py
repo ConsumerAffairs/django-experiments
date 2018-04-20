@@ -128,7 +128,6 @@ class WebUser(object):
                 'experiment_name': experiment.name,
                 'experiment_variant': chosen_alternative,
             }
-            print self.experiments_exposure
 
         return chosen_alternative
 
